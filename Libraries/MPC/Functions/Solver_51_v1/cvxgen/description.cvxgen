@@ -1,0 +1,47 @@
+# Produced by CVXGEN, 2019-07-30 10:35:09 -0400.
+# CVXGEN is Copyright (C) 2006-2017 Jacob Mattingley, jem@cvxgen.com.
+# The code in this file is Copyright (C) 2006-2017 Jacob Mattingley.
+# CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial
+# applications without prior written permission from Jacob Mattingley.
+
+# Filename: description.cvxgen.
+# Description: A description of the CVXGEN problem.
+
+dimensions
+  n = 1  # states
+  m = 2  # inputs
+  N = 50 # horizon
+end
+
+parameters
+  A (n,n)                # dynamics matrix
+  KE[0]                  # initial state
+  KE_des[k], k=1..N+1    # Desired kinetic energy
+  Env[k], k=0..N         # Enviromental energy losses
+  KE_max[k], k=1..N+1    # KE upper limit
+  KE_min[k], k=1..N+1    # KE lower limit
+  E_mech_max             # ME upper limit
+  E_mech_min             # ME lower limit
+  E_brk_max              # ME upper limit
+  E_brk_min              # ME lower limit
+  lam_e                  # KE coef
+  lam_b                  # BE coef
+end
+
+variables
+  KE[k] (n), k=1..N+1    # state
+  E_mech[k] (n), k=0..N  # input
+  E_brk[k] (n), k=0..N   # input
+end
+
+minimize
+  sum[k=0..N](square(E_mech[k])) + sum[k=0..N](square(lam_b*E_brk[k])) + sum[k=1..N+1](square(lam_e*(KE[k]-KE_des[k])))
+subject to
+  KE[k+1] == A*KE[k] + E_mech[k] - E_brk[k] - Env[k], k=0..N  # dynamics constraints
+  KE[k] <= KE_max[k], k=1..N+1
+  KE[k] >= KE_min[k], k=1..N+1
+  E_mech[k] <= E_mech_max, k=0..N  # maximum input box constraint
+  E_mech[k] >= E_mech_min, k=0..N  # minimum input box constraint
+  E_brk[k] <= E_brk_max, k=0..N    # maximum input box constraint
+  E_brk[k] >= E_brk_min, k=0..N    # minimum input box constraint
+end

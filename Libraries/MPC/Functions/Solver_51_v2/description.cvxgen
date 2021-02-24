@@ -1,0 +1,51 @@
+# Produced by CVXGEN, 2019-07-11 08:31:08 -0400.
+# CVXGEN is Copyright (C) 2006-2017 Jacob Mattingley, jem@cvxgen.com.
+# The code in this file is Copyright (C) 2006-2017 Jacob Mattingley.
+# CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial
+# applications without prior written permission from Jacob Mattingley.
+
+# Filename: description.cvxgen.
+# Description: A description of the CVXGEN problem.
+
+dimensions
+  n = 1  # states
+  m = 2  # inputs
+  N = 50  # horizon
+end
+
+parameters
+  A (n,n)                # Dynamics matrix
+  KE[0]                  # Initial state
+  KE_des[k], k=1..N+1    # Desired kinetic energy
+  Env[k], k=0..N         # Enviromental energy losses
+  KE_max[k], k=1..N+1    # KE upper limit
+  KE_min[k], k=1..N+1    # KE lower limit
+  E_mech_max             # ME upper limit
+  E_mech_min             # ME lower limit
+  E_brk_max              # ME upper limit
+  E_brk_min              # ME lower limit
+  lam_e[k], k=1..N+1     # KE coef
+  lam_b[k], k=1..N+1     # BE coef
+  U_p                    # Previous control
+  dU                     # Max change in control
+end
+
+variables
+  KE[k] (n), k=1..N+1    # state
+  E_mech[k] (n), k=0..N  # input
+  E_brk[k] (n), k=0..N   # input
+end
+
+minimize
+  sum[k=0..N](square(E_mech[k])) + sum[k=0..N](square(lam_b[k+1]*E_brk[k])) + sum[k=1..N+1](square(lam_e[k]*(KE[k]-KE_des[k])))
+subject to
+  KE[k+1] == A*KE[k] + E_mech[k] - E_brk[k] - Env[k], k=0..N       # dynamics constraints
+  KE[k] <= KE_max[k], k=1..N+1                                     # maximum kinetic energy constraint
+  KE[k] >= KE_min[k], k=1..N+1                                     # minimum kinetic energy constraint
+  E_mech[k] <= E_mech_max, k=0..N                                  # maximum acceleration constraint
+  E_mech[k] >= E_mech_min, k=0..N                                  # minimum acceleration constraint
+  E_brk[k] <= E_brk_max, k=0..N                                    # maximum braking constraint
+  E_brk[k] >= E_brk_min, k=0..N                                    # minimum braking constraint
+  abs((E_mech[0]-E_brk[0])-U_p) < dU                               # constraint on change in control value from previous iteration
+  abs((E_mech[k]-E_brk[k])-(E_mech[k-1]-E_brk[k-1])) < dU, k=1..N  # constraint on change in control value
+end
