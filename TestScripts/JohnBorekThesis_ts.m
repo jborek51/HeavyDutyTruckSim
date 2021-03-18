@@ -7,8 +7,8 @@ parent = 'C:\Users\John Jr\Dropbox (UNC Charlotte)\John Borek - Research\Thesis\
 % parent = 'C:\Users\jbore\Dropbox (UNC Charlotte)\John Borek - Research\Thesis\Model\Results';
 clearvars -except parent ii;    clc;
 %% Initialize Model
-CONTROLLER = 'MPC_GP_v5';                   %   Active Controller
-% CONTROLLER = 'MPC_v0';                   %   Active Controller
+VEHICLECONTROLLER = 'Baseline';              %   Active Vehicle Controller
+CONTROLLER = 'MPC_GP_v5';                   %   Active Velocity Controller
 startTimes = [9 11 13 15 17.1];             %   hr - Departure time in military time
 Tscenarios = [1 5 10];                      %   Traffic scenarios to run
 for ii = 1:numel(Tscenarios)
@@ -19,7 +19,11 @@ for ii = 1:numel(Tscenarios)
         T = Tscenarios(ii);  L = 1;                 %   Traffic and signal timing file
         Initialize_Plant;                           %   Initialization of plant model
         Initialize_Gear;                            %   Initialize powertrain variables
-        Initialize_UNCC;                            %   Initialize velocity controller
+        if strcmpi(VEHICLECONTROLLER,'Optimal')
+            Initialize_UNCC;                        %   Initialize velocity controller
+        else
+            Initialize_BL;                          %   Initialize velocity controller
+        end
         VEH.vehicleMass = 25000;                    %   kg - Vehicle mass - half trailer
         timeStep = 0.01;                            %   s - Simulation timestep
         x_0 = 0;    x_f = UNCC.X_vec(end);          %   m - Simulation start and finish position
