@@ -1,28 +1,46 @@
-% -------------------------------------------------------------------------
-% Initialization file for the Simplified Vehicle Model
-% Author:           J.Borek
-% Last Modified:    04/27/2020 by J.Borek
-%--------------------------------------------------------------------------
-parent = 'C:\Users\John Jr\Dropbox (UNC Charlotte)\John Borek - Research\Thesis\Model';
-% parent = 'C:\Users\jbore\Dropbox (UNC Charlotte)\John Borek - Research\Thesis\Model\Results';
-clearvars -except parent ii;    clc;
-%% Initialize Model
-VEHICLECONTROLLER = 'Baseline';              %   Active Vehicle Controller
-CONTROLLER = 'MPC_GP_v5';                   %   Active Velocity Controller
-startTimes = [9 11 13 15 17.1];             %   hr - Departure time in military time
-Tscenarios = [1 5 10];                      %   Traffic scenarios to run
+%%  Test script for running heavy-duty vehicle simulations
+clear; clc;
+%%  Simulation scenario setup
+simScenario = [3 1 0];                      %   Simulation scenario selection
+startTimes = 9; %[9 11 13 15 17.1];             %   hr - Departure time in military time
+Tscenarios = 1; %[1 5 10];                      %   Traffic scenarios to run
+switch simScenario(1)
+    case 1
+        VEHICLECONTROLLER = 'Optimal';      %   Optimal Vehicle Controller
+    case 2
+        VEHICLECONTROLLER = 'Baseline';     %   Baseline Vehicle Controller
+    case 3
+        VEHICLECONTROLLER = 'Test';         %   Test Vehicle Controller
+end
+switch simScenario(2)
+    case 1
+        CONTROLLER = 'MPC_GP_v5';           %   Main Velocity Controller
+    case 2
+        CONTROLLER = 'MPC_GP_v5a';          %   Perfect SPaT Velocity Controller
+    case 3
+        CONTROLLER = 'MPC_GP_v6';           %   No breaking penalty objective function
+    case 4
+        CONTROLLER = 'MPC_v0';              %   No velocity planning/No MPC
+end
+if strcmpi(VEHICLECONTROLLER,'Optimal')
+    INFRASTRUCTURE = CONTROLLER;
+else
+    INFRASTRUCTURE = 'BL';
+end
+%%  loop through simulation scenarios 
 for ii = 1:numel(Tscenarios)
     for jj = 1:numel(startTimes)
-%         if exist('slprj','dir');  rmdir('slprj','s');  end
         Simulink.sdi.clear
         t_start = startTimes(jj);                   %   hr - Departure time in military time
-        T = Tscenarios(ii);  L = 1;                 %   Traffic and signal timing file
+        T = Tscenarios(ii);                         %   Traffic file
         Initialize_Plant;                           %   Initialization of plant model
         Initialize_Gear;                            %   Initialize powertrain variables
         if strcmpi(VEHICLECONTROLLER,'Optimal')
             Initialize_UNCC;                        %   Initialize velocity controller
-        else
+        elseif strcmpi(VEHICLECONTROLLER,'Baseline')
             Initialize_BL;                          %   Initialize velocity controller
+        elseif strcmpi(VEHICLECONTROLLER,'Test')
+            Initialize_Test;                        %   Initialize velocity controller
         end
         VEH.vehicleMass = 25000;                    %   kg - Vehicle mass - half trailer
         timeStep = 0.01;                            %   s - Simulation timestep
@@ -30,34 +48,23 @@ for ii = 1:numel(Tscenarios)
         %% Simulate Model
         fprintf('Departure Time: %.1f;\tTraffic Density: %d\n',t_start,T)
         tic
-        sim('HeavyDutyTruckSim')
+        simWithMonitor('HeavyDutyTruckSim')
         runTime = toc;
         %%  Log Data
         tsc = signalcontainer(logsout);
-        Log_Data;   cond = 1;   test = 3;
-%         while cond == 1
-%             filename = strcat('Thesis_Traffic-',num2str(T),'_R29_v5_s',num2str(floor(t_start)),'_',num2str(test),'.mat');
-%             if exist(filename,'file')
-%                 test = test + 1;
-%             else
-%                 cond = 0;
-%             end
-%         end
-        filename = strcat('Thesis_Traffic-',num2str(T),'_R29_v5_s',num2str(floor(t_start)),'_',num2str(test),'.mat');
-        save(strcat('D:\Journal 2 Results\',filename),'Opt')
+        switch simScenario(1)
+            case 1
+                filename = strcat(CONTROLLER,'_R29_T',num2str(T),'_s',num2str(floor(t_start)),'.mat');
+            case 2
+                filename = strcat('BL_R29_T',num2str(T),'_s',num2str(floor(t_start)),'.mat');
+            case 3
+                filename = strcat('Test_R29_T',num2str(T),'_s',num2str(floor(t_start)),'.mat');
+        end
+        fpath = fullfile(fileparts(which('HeavyDutyTruckSim.prj')),'Results\',VEHICLECONTROLLER,'\');
+        if simScenario(3) == 1
+            save(strcat(fpath,filename),'tsc','T','t_start')
+        end
     end
 end
-%%
-% load(strcat('D:\Journal 2 Results\BLnew','_T',num2str(T),'_R29_v100_',num2str(floor(t_start)),'.mat'));
-% load(strcat('D:\Journal 2 Results\Thesis_Traffic-',num2str(T),'_R29_v5_s',num2str(floor(t_start)),'_4.mat'))
-% Baseline = BL_Analysis(Baseline);
-% Opt4 = Opt_Analysis(Opt,Baseline);
-% load(strcat('D:\Journal 2 Results\Thesis_Traffic-',num2str(T),'_R29_v5_s',num2str(floor(t_start)),'_3.mat'))
-% Opt3 = Opt_Analysis(Opt,Baseline);
-% load(strcat('D:\Journal 2 Results\Thesis_Traffic-',num2str(T),'_R29_v5_s',num2str(floor(t_start)),'_2.mat'))
-% Opt2 = Opt_Analysis(Opt,Baseline);
-% load(strcat('D:\Journal 2 Results\Thesis_Traffic-',num2str(T),'_R29_v5_s',num2str(floor(t_start)),'_1.mat'))
-% Opt1 = Opt_Analysis(Opt,Baseline);
-
 %%  Plots
 % run Plot_Sim_Trajectory
